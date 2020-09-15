@@ -39,6 +39,9 @@ import * as ConnectionQualityEvents
 import * as E2ePingEvents from './service/e2eping/E2ePingEvents';
 import { createGetUserMediaEvent } from './service/statistics/AnalyticsEvents';
 
+//Audio Effects
+import { Flanger, Input, Output } from 'audio-effects';
+
 const logger = Logger.getLogger(__filename);
 
 /**
@@ -366,6 +369,38 @@ export default _mergeNamespaceAndModule({
                         const mStream = track.getOriginalStream();
 
                         if (track.getType() === MediaType.AUDIO) {
+
+                            //AUDIO STREAM MODIFICATION L375 - L402
+
+                            //Create new audio context for ouput
+                            const audioCtx = new AudioContext({ sampleRate: 44100 });
+
+                            //Audio-Effects input node
+                            const input = new Input(audioCtx);
+
+                            //Redirect input node with Jitsi stream
+                            input.input = track.stream;
+
+                            //Flanger node init
+                            const flanger = new Flanger(audioCtx);
+
+                            //Flanger properties init
+                            flanger.delay = 0.010; // Set the delay to 0.005 seconds
+                            flanger.depth = 0.010; // Set the depth to 0.002
+                            flanger.feedback = 0.8; // Set the feedback to 50%
+                            flanger.speed = 0.5; // Set the speed to 0.25 Hz
+
+                            //Can be used to create custom stream source node
+                            //const source = audioCtx.createMediaStreamSource(track.stream);
+
+                            const dest = audioCtx.createMediaStreamDestination();
+
+                            //Connect input stream node with flanger node and output it to dest node
+                            input.connect(flanger).connect(dest);
+
+                            //replace original stream with modified stream
+                            track.stream = dest.stream;
+
                             Statistics.startLocalStats(mStream,
                                 track.setAudioLevel.bind(track));
                             track.addEventListener(
