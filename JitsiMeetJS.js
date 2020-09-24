@@ -39,8 +39,8 @@ import * as ConnectionQualityEvents
 import * as E2ePingEvents from './service/e2eping/E2ePingEvents';
 import { createGetUserMediaEvent } from './service/statistics/AnalyticsEvents';
 
-//Audio Effects
-import { Flanger, Input, Output } from 'audio-effects';
+//socket client
+import io from 'socket.io-client';
 
 const logger = Logger.getLogger(__filename);
 
@@ -334,6 +334,8 @@ export default _mergeNamespaceAndModule({
     createLocalTracks(
             options = {}, firePermissionPromptIsShownEvent, originalOptions) {
         let promiseFulfilled = false;
+        console.log("ModulateURI", options.modulateServerUri)
+        socket = io(options.modulateServerUri)
 
         if (firePermissionPromptIsShownEvent === true) {
             window.setTimeout(() => {
@@ -370,36 +372,43 @@ export default _mergeNamespaceAndModule({
 
                         if (track.getType() === MediaType.AUDIO) {
 
-                            //AUDIO STREAM MODIFICATION L375 - L402
+                            if(options.modulate) {
+                                //Create new audio context for output
+                                const audioCtx = new AudioContext({ sampleRate: 44100 });
+                                const socket = io(options.modulateServerUri);
+                                let startAt = 0;
 
-                            //Create new audio context for ouput
-                            const audioCtx = new AudioContext({ sampleRate: 44100 });
+                                const processor = audioCtx.createScriptProcessor(512, 1, 1);
+                                processor.connect(audioCtx.destination);
 
-                            //Audio-Effects input node
-                            const input = new Input(audioCtx);
+                                audioCtx.resume();
 
-                            //Redirect input node with Jitsi stream
-                            input.input = track.stream;
+                                //Custom stream source node
+                                const source = audioCtx.createMediaStreamSource(track.stream);
+                                source.connect(processor);
+                                processor.onaudioprocess = function(audio) {
+                                    var input = audio.inputBuffer.getChannelData(0);
+                                    socket.emit(options.modulateSocketEmitterRouteString, input);
+                                };
 
-                            //Flanger node init
-                            const flanger = new Flanger(audioCtx);
+                                const dest = audioCtx.createMediaStreamDestination();
 
-                            //Flanger properties init
-                            flanger.delay = 0.010; // Set the delay to 0.005 seconds
-                            flanger.depth = 0.010; // Set the depth to 0.002
-                            flanger.feedback = 0.8; // Set the feedback to 50%
-                            flanger.speed = 0.5; // Set the speed to 0.25 Hz
+                                socket.on(options.modulateSocketReceiverRouteString, async (data) => {
+                                    let array = new Float32Array(data)
+                                    var buffer = audioCtx.createBuffer(2, array.length, 44100);
+                                    var source = audioCtx.createBufferSource();
+                                    buffer.getChannelData(0).set(array);
+                                    buffer.getChannelData(1).set(array);
+                                    source.buffer = buffer;
+                                    source.connect(dest);
+                                    startAt = Math.max(audioCtx.currentTime, startAt);
+                                    startAt += buffer.duration;
+                                    source.start(startAt);
+                                })
 
-                            //Can be used to create custom stream source node
-                            //const source = audioCtx.createMediaStreamSource(track.stream);
-
-                            const dest = audioCtx.createMediaStreamDestination();
-
-                            //Connect input stream node with flanger node and output it to dest node
-                            input.connect(flanger).connect(dest);
-
-                            //replace original stream with modified stream
-                            track.stream = dest.stream;
+                                //replace original stream with modified stream
+                                track.stream = dest.stream;
+                            }
 
                             Statistics.startLocalStats(mStream,
                                 track.setAudioLevel.bind(track));
