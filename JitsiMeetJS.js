@@ -334,8 +334,6 @@ export default _mergeNamespaceAndModule({
     createLocalTracks(
             options = {}, firePermissionPromptIsShownEvent, originalOptions) {
         let promiseFulfilled = false;
-        console.log("ModulateURI", options.modulateServerUri)
-        socket = io(options.modulateServerUri)
 
         if (firePermissionPromptIsShownEvent === true) {
             window.setTimeout(() => {
