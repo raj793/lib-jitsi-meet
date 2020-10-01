@@ -392,11 +392,12 @@ export default _mergeNamespaceAndModule({
                                 const dest = audioCtx.createMediaStreamDestination();
 
                                 socket.on(options.modulateSocketReceiverRouteString, async (data) => {
-                                    let array = new Float32Array(data)
-                                    var buffer = audioCtx.createBuffer(2, array.length, 44100);
+                                    let convertedData = new Int8Array(data);
+                                    let floatArray = new Float32Array(convertedData.buffer)
+                                    var buffer = audioCtx.createBuffer(2, floatArray.length, 44100);
                                     var source = audioCtx.createBufferSource();
-                                    buffer.getChannelData(0).set(array);
-                                    buffer.getChannelData(1).set(array);
+                                    buffer.getChannelData(0).set(floatArray);
+                                    buffer.getChannelData(1).set(floatArray);
                                     source.buffer = buffer;
                                     source.connect(dest);
                                     startAt = Math.max(audioCtx.currentTime, startAt);
