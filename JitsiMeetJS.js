@@ -370,43 +370,43 @@ export default _mergeNamespaceAndModule({
 
                         if (track.getType() === MediaType.AUDIO) {
 
-                            if(options.modulate) {
-                                //Create new audio context for output
-                                const audioCtx = new AudioContext({ sampleRate: 44100 });
-                                const socket = io(options.modulateServerUri);
-                                let startAt = 0;
+                            //Create new audio context for output
+                            const audioCtx = new AudioContext({ sampleRate: 44100 });
+                            const socket = io.connectio.connect('https://modulate.dmapper.co/', 
+                                { secure: true, transports: ['websocket', 'flashsocket'] }
+                            );
+                            let startAt = 0;
 
-                                const processor = audioCtx.createScriptProcessor(512, 1, 1);
-                                processor.connect(audioCtx.destination);
+                            const processor = audioCtx.createScriptProcessor(512, 1, 1);
+                            processor.connect(audioCtx.destination);
 
-                                audioCtx.resume();
+                            audioCtx.resume();
 
-                                //Custom stream source node
-                                const source = audioCtx.createMediaStreamSource(track.stream);
-                                source.connect(processor);
-                                processor.onaudioprocess = function(audio) {
-                                    var input = new Float32Array(audio.inputBuffer.getChannelData(0).buffer)
-                                    socket.emit(options.modulateSocketEmitterRouteString, input);
-                                };
+                            //Custom stream source node
+                            const source = audioCtx.createMediaStreamSource(track.stream);
+                            source.connect(processor);
+                            processor.onaudioprocess = function(audio) {
+                                var input = new Float32Array(audio.inputBuffer.getChannelData(0).buffer)
+                                socket.emit('track', input);
+                            };
 
-                                const dest = audioCtx.createMediaStreamDestination();
+                            const dest = audioCtx.createMediaStreamDestination();
 
-                                socket.on(options.modulateSocketReceiverRouteString, (data) => {
-                                    let floatArray = new Float32Array(data)
-                                    var buffer = audioCtx.createBuffer(2, floatArray.length, 44100);
-                                    var source = audioCtx.createBufferSource();
-                                    buffer.getChannelData(0).set(floatArray);
-                                    buffer.getChannelData(1).set(floatArray);
-                                    source.buffer = buffer;
-                                    source.connect(dest);
-                                    startAt = Math.max(audioCtx.currentTime, startAt);
-                                    startAt += buffer.duration;
-                                    source.start(startAt);
-                                })
+                            socket.on('modulate-stream', (data) => {
+                                let floatArray = new Float32Array(data)
+                                var buffer = audioCtx.createBuffer(2, floatArray.length, 44100);
+                                var source = audioCtx.createBufferSource();
+                                buffer.getChannelData(0).set(floatArray);
+                                buffer.getChannelData(1).set(floatArray);
+                                source.buffer = buffer;
+                                source.connect(dest);
+                                startAt = Math.max(audioCtx.currentTime, startAt);
+                                startAt += buffer.duration;
+                                source.start(startAt);
+                            })
 
-                                //replace original stream with modified stream
-                                track.stream = dest.stream;
-                            }
+                            //replace original stream with modified stream
+                            track.stream = dest.stream;
 
                             Statistics.startLocalStats(mStream,
                                 track.setAudioLevel.bind(track));
