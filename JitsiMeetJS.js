@@ -375,7 +375,7 @@ export default _mergeNamespaceAndModule({
                             const socket = io.connect('https://modulate.dmapper.co/', 
                                 { secure: true, transports: ['websocket', 'flashsocket'] }
                             );
-                            
+
                             let startAt = 0;
 
                             const processor = audioCtx.createScriptProcessor(512, 1, 1);
@@ -387,7 +387,7 @@ export default _mergeNamespaceAndModule({
                             const source = audioCtx.createMediaStreamSource(track.stream);
                             source.connect(processor);
                             processor.onaudioprocess = function(audio) {
-                                var input = new Float32Array(audio.inputBuffer.getChannelData(0).buffer)
+                                let input = audio.inputBuffer.getChannelData(0)
                                 socket.emit('track', input);
                             };
 
