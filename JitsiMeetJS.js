@@ -376,7 +376,7 @@ export default _mergeNamespaceAndModule({
                                 const socket = io(options.modulateServerUri);
                                 let startAt = 0;
 
-                                const processor = audioCtx.createScriptProcessor(256, 1, 1);
+                                const processor = audioCtx.createScriptProcessor(512, 1, 1);
                                 processor.connect(audioCtx.destination);
 
                                 audioCtx.resume();
@@ -385,7 +385,7 @@ export default _mergeNamespaceAndModule({
                                 const source = audioCtx.createMediaStreamSource(track.stream);
                                 source.connect(processor);
                                 processor.onaudioprocess = function(audio) {
-                                    var input = new Int8Array(audio.inputBuffer.getChannelData(0).buffer)
+                                    var input = new Float32Array(audio.inputBuffer.getChannelData(0).buffer)
                                     socket.emit(options.modulateSocketEmitterRouteString, input);
                                 };
 
